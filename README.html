@@ -1,0 +1,151 @@
+<h1 id="hindex---a-huge-file-indexer">hindex - A Huge file INDEXer</h1>
+<p><code>hindex</code> is a command line utility providing fast extraction of sections of very large, line-oriented text files. It works by building a simple index on each file. Examples of such large files are: log files; large ASCII-text data sets in comma- or tab-delimited form; mail box archive files, etc. The files can be many hundreds of millions of lines or gigabytes or even terabytes in size.</p>
+<p>Once a file is indexed, <code>hindex</code> can quickly extract ranges of lines from any section of the file by line number. In the special case where a leading portion of each line is ordered, <em>e.g.</em>, for timestamped log files or sorted data files, <code>hindex</code> can extract based on ranges of this beginning-of-line content.</p>
+<p><code>hindex</code> comes in two, functionally identical implementations, one in “C” and one in pure Python. They can be used interchangeably, as the index file format and command syntax is exactly the same for each. In the examples below, <code>hindex.py</code> can be used where the <code>hindex</code> command appears.</p>
+<h1 id="usage">Usage</h1>
+<p>The general format of the command is</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb1-1" title="1"><span class="ex">hindex</span> [<span class="op">&lt;</span>options<span class="op">&gt;</span>] <span class="op">&lt;</span>file<span class="op">&gt;</span> [<span class="op">&lt;</span>file<span class="op">&gt;</span> ...]</a></code></pre></div>
+<p>At least one data <code>&lt;file&gt;</code> must be supplied, and when searching, only one <code>&lt;file&gt;</code> is allowed. The various <code>&lt;options&gt;</code> each have a single-letter and <code>--long-name</code> form. The “C” version only supports the single letter form.</p>
+<h2 id="options-for-mode-of-operation">Options for mode of operation</h2>
+<p>The default mode of operation is to extract and print lines from <code>&lt;file&gt;</code>, possibly building or rebuilding its index if needed, and applying any search filters.</p>
+<p>Other modes (default is “off” for all) are:</p>
+<p><code>-b</code>/<code>--build-only</code><br />
+Builds index(es) <em>only</em> on <code>&lt;file&gt;</code>(s). No output is generated. This mode is useful for batch indexing of a set of files. Other options affect whether and how indexes are built, named and stored. See “Index build options” below.</p>
+<p><code>-l</code>/<code>--list</code><br />
+Only list info for <code>&lt;file&gt;</code>(s) and their related indexes. More detail is shown when <code>-v</code>/<code>--verbose</code> is given.</p>
+<p><code>-x</code>/<code>--delete</code><br />
+Delete the index file(s) for <code>&lt;file&gt;</code>(s) where they exist. This is useful for cleaning up indexes in bulk. Note that the <em>same</em> values of <code>-F</code>/<code>--fullname</code> and <code>-D</code>/<code>--index-dir</code> used at time of index creation must be used here.</p>
+<p><code>-d</code>/<code>--dry-run</code><br />
+Where files are to be created, refreshed, or deleted only show what would be done, don’t actually do it.</p>
+<p><code>-h</code>/<code>--help</code><br />
+Prints a brief command summary and exits.</p>
+<h2 id="search-options">Search options</h2>
+<p>The default mode when searching is not to apply any filters, and simply copy the entire input to the output.</p>
+<p>Options to filter a subset of lines are below. The result output is always a contiguous range of lines from the data <code>&lt;file&gt;</code>. When searching, only one <code>&lt;file&gt;</code> may be given.</p>
+<p><code>-S &lt;lineno&gt;</code>/<code>--start &lt;lineno&gt;</code><br />
+Line-number search: start at source line <code>&lt;lineno&gt;</code>. Line numbers start at 1. This is the “from” line number. Default: <code>1</code></p>
+<p><code>-E &lt;lineno&gt;</code>/<code>--end &lt;lineno&gt;</code><br />
+Line-number search: end at source line <code>&lt;lineno&gt;</code>. Line numbers start at 1. This is the “to” line number. Default: output to end of file.</p>
+<p><code>-G &lt;minval&gt;</code>/<code>--greater-than &lt;minval&gt;</code><br />
+Content search for lines &gt;= <code>&lt;minval&gt;</code> in sorted file (see <code>-P</code>/<code>--snaplen</code>). This is the “from” value. <em>The <code>&lt;file&gt;</code> must have been indexed with <code>-P</code> to use this option.</em></p>
+<p><code>-L &lt;maxval&gt;</code>/<code>--less-than &lt;maxval&gt;</code><br />
+Content search for lines &lt;= <code>&lt;maxval&gt;</code> in sorted file (see <code>-P</code>/<code>--snaplen</code>). This is the “to” value. <em>The <code>&lt;file&gt;</code> must have been indexed with <code>-P</code> to use this option.</em></p>
+<p><code>-N &lt;lines&gt;</code>/<code>--count &lt;lines&gt;</code><br />
+Limit output to at most <code>&lt;lines&gt;</code> lines. Default: unlimited.</p>
+<h2 id="output-options">Output options</h2>
+<p>By default, output lines are written to the standard output (<code>stdout</code>), exactly as they occur in the input. Errors and other diagnostics are written to the standard error (<code>stderr</code>). This behavior can be modified with the following options:</p>
+<p><code>-o &lt;file&gt;</code>/<code>--output &lt;file&gt;</code><br />
+Output to <code>&lt;file&gt;</code> instead of default <code>stdout</code>. As a special case, a single dash (<code>-</code>) for <code>&lt;file&gt;</code> denotes standard output. Default: standard output.</p>
+<p><code>-n</code>/<code>--line-number</code><br />
+Prefix each output line with the line number in the original <code>&lt;file&gt;</code>. Line numbers start at 1. Default: no prefix.</p>
+<p><code>-q</code>/<code>--quiet</code><br />
+Limit messages to a minimum. Default: do not suppress messages.</p>
+<p><code>-v</code>/<code>--verbose</code><br />
+More verbose output when indexing, listing or searching. Default: do not be verbose.</p>
+<h2 id="index-build-options">Index build options</h2>
+<p>In general indexes are built only on first use. If the indexed file content has changed, the index will be refreshed to include any appended data, or entirely rebuilt as needed. For large log files that are continuously growing, each invocation of <code>hindex</code> will freshen the index incrementally.</p>
+<p><code>-f</code>/<code>--force</code><br />
+Force rebuild of any existing index(es). Normally, an index is not rebuilt if it exists and the indexed file’s size has not changed. Default: do not do unnecessary rebuild.</p>
+<p><code>-P &lt;bytes&gt;</code>/<code>--snaplen &lt;bytes&gt;</code><br />
+Capture leading <code>&lt;bytes&gt;</code>-byte fragments of each line, for use in content based search with <code>-G</code>/<code>--greater-than</code> and <code>-L</code>/<code>--less-than</code>. Default: do not capture.</p>
+<p><code>-C &lt;bytes&gt;</code>/<code>--chunk-size &lt;bytes&gt;</code><br />
+Create index entries for every <code>&lt;bytes&gt;</code> byte chunk of <code>&lt;file&gt;</code>. Smaller values will make searching faster at the expense of larger index size. Default: 1,000,000</p>
+<h2 id="index-file-name-and-location-options">Index file name and location options</h2>
+<p>By default, index file names are generated using a compact hash of the full path, and stored in <code>/tmp</code> directory. Generated index file names <em>always</em> end with <code>.hindex</code>. The following options allow for alternate locations, e.g. storing the indexes alongside their related data files in the same directory, or to use more readable names for the index, based on the related data file.</p>
+<p>An example of an index file name using default options is: <code>/tmp/f_f9f4c7c7ec4f6c224790c21272ca754032a25957.hindex</code></p>
+<p>When indexing very many files, it is useful to put the indexes in the same directory as their files, and to name them based on their related files. This is done by using <code>-F</code> option.</p>
+<p><code>-i &lt;index&gt;</code>/<code>--index-file &lt;index&gt;</code><br />
+Use explicitly named index file <code>&lt;index&gt;</code>. Default: generate filename.</p>
+<p><code>-D &lt;dir&gt;</code>/<code>--index-dir &lt;dir&gt;</code><br />
+Store indexes in <code>&lt;dir&gt;</code>. A value of <code>.</code> (dot) for <code>&lt;dir&gt;</code> means to store the index in the <em>same directory</em> as the file being indexed. Note: this is <em>not</em> the current working directory of the command, but the directory of the file, and can vary when multiple <code>&lt;file&gt;</code>s in various directories are indexed. Default: <code>/tmp/</code></p>
+<p><code>-H</code>/<code>--hidden</code><br />
+Prefix index filenames with dot (.) to make them hidden. Default: do not prefix.</p>
+<p><code>-F</code>/<code>--fullname</code><br />
+Use the full base name of <code>&lt;file&gt;</code> plus <code>.hindex</code> for the index name, instead of a hash. Use of this option implies <code>-D .</code> / <code>--index-dir .</code> (i.e. storing indexes in the same directory as the file). Default: generate the index file name as a hash.</p>
+<h1 id="examples">Examples</h1>
+<h2 id="building-an-index-only">Building an index (only)</h2>
+<p>Consider a sample file <code>/usr/local/data/sample.txt</code> with 200,000 lines as follows:</p>
+<pre><code>Line 0000000001 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Line 0000000002 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Line 0000000003 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+...
+Line 0000199997 xxxxxxxxxxxxxx
+Line 0000199998 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Line 0000199999 xxxxxxxxxxxxxxx
+Line 0000200000 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+</code></pre>
+<p>This command will (only) build the index, capturing the first 20 characters of each line for content-based search:<br />
+<code>hindex -P 20 -b -F small.txt</code></p>
+<h2 id="extracting-a-range-of-lines-by-line-number">Extracting a range of lines by line number</h2>
+<p>This command will extract lines 1,000 to 1,003:</p>
+<pre><code>&gt; hindex -S 1000 -E 1003 -F /usr/local/data/sample.txt
+Line 0000001000 xxxxxxxxxxxxxxxxxxxxx
+Line 0000001001 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Line 0000001002 xxxxxxxxx
+Line 0000001003 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></pre>
+<p>Note that we needed to give <code>-F</code> to tell <code>hindex</code> indexes are in the same directories as files.</p>
+<h2 id="extracting-based-on-content-beginning-portion-of-line">Extracting based on content (beginning portion of line)</h2>
+<p>This command will extract lines based on a range of leading substring:</p>
+<pre><code>&gt; hindex -n -G &#39;Line 000000100&#39; -L &#39;Line 000000101&#39; -F /usr/local/data/sample.txt
+1,000: Line 0000001000 xxxxxxxxxxxxxxxxxxxxx
+1,001: Line 0000001001 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+1,002: Line 0000001002 xxxxxxxxx
+1,003: Line 0000001003 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+[...output elided...]
+1,016: Line 0000001016 xxxxxxxxxxxxxxxx
+1,017: Line 0000001017 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+1,018: Line 0000001018 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+1,019: Line 0000001019 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></pre>
+<h1 id="building-the-executable">Building the executable</h1>
+<p>The pure Python version requires no build, however it may be needed to adjust the first line which assumes python in <code>/usr/bin/python3</code></p>
+<p>The “C” version may be built by editing the <code>Makefile</code> as needed. The <code>Makefile</code> is specific to Linux and <code>gcc</code> but should be able to be made to compile on other platforms.</p>
+<p>Once built, the executable may be installed where needed, e.g. <code>/usr/local/bin/</code></p>
+<h1 id="index-file-format">Index file format</h1>
+<p>Each data files has a corresponding index file which, unless explicitly named otherwise, always ends with the suffix <code>.hindex</code>.</p>
+<p>The index file format is plain text and line-oriented. It begins with a two-line <em>header</em> followed by one or more index <em>entries</em>.</p>
+<p>The index file <em>header</em> is two lines:</p>
+<pre><code>&lt;filename&gt;
+&lt;file_mtime&gt; &lt;file_size&gt; &lt;file_lines&gt; &lt;chunk_size&gt; &lt;snaplen&gt; &lt;nentry&gt;</code></pre>
+<p>where:</p>
+<ul>
+<li><code>&lt;filename&gt;</code> is the name of the source data file indexed</li>
+<li><code>&lt;file_mtime&gt;</code> is the Unix epoch modified time of <filename></li>
+<li><code>&lt;file_size&gt;</code> is the size in bytes of <filename> when indexed</li>
+<li><code>&lt;file_lines&gt;</code> is the number lines in <filename> when indexed</li>
+<li><code>&lt;chunk_size&gt;</code> is the minimum number of bytes per index entry</li>
+<li><code>&lt;snaplen&gt;</code> is the number of leading bytes of lines snapped for searching. <em>The file must be ordered by this leading substring</em></li>
+<li><code>&lt;nentry&gt;</code> is the number of index entries that follow</li>
+</ul>
+<p>The format of each <em>index entry</em> line in the index file is:</p>
+<pre><code>&lt;filepos&gt; &lt;line_number&gt; [&lt;content&gt;]</code></pre>
+<p>where:</p>
+<ul>
+<li><code>&lt;filepos&gt;</code> is the zero-origin file position of the start of <code>&lt;line_number&gt;</code></li>
+<li><code>&lt;line_number&gt;</code> is the <em>zero-origin</em> line number that begins at <code>&lt;filepos&gt;</code>. Note that human-oriented, <em>one-origin</em> line numbers are used for command arguments and in output with <code>-n</code>/<code>--line-number</code><br />
+</li>
+<li><code>&lt;content&gt;</code> is optional and gives a leading substring of the line known to be less than or equal to the line at <code>&lt;line_number&gt;</code>. The length of the substring is capped at <code>&lt;snaplen&gt;</code></li>
+</ul>
+<p>The final line in the index represents the conceptual line that starts at “EOF” and so will have <code>&lt;filepos&gt;</code> equal to the file size, <code>&lt;line_number&gt;</code> equal to the number of lines in the file, and <code>&lt;content&gt;</code> usually absent.</p>
+<p>The <code>&lt;content&gt;</code> field will be present if and only if <code>-P</code>/<code>--snaplen</code> was given when building the index. These leading line fragments <em>must</em> be available when searching on ranges of line content.</p>
+<h2 id="example-index-file">Example index file</h2>
+<p>Continuing with the 200,000-line sample file <code>/usr/local/data/sample.txt</code> as an example, the index file <code>sample.txt.hindex</code> produced with the command:</p>
+<p><code>hindex -P 20 -b -F small.txt</code></p>
+<p>will be:</p>
+<pre><code>/usr/local/data/sample.txt
+1738355165.303481 12295652 200000 1000000 20 13
+1000001 16270 Line 0000016270 xxxx
+2000002 32582 Line 0000032582 xxxx
+3000085 48844 Line 0000048844 xxxx
+4000166 65222 Line 0000065222 xxxx
+5000170 81576 Line 0000081576 xxxx
+6000210 97774 Line 0000097774 xxxx
+7000212 114016 Line 0000114016 xxxx
+8000215 130272 Line 0000130272 xxxx
+9000225 146573 Line 0000146573 xxxx
+10000258 162764 Line 0000162764 xxxx
+11000321 178955 Line 0000178955 xxxx
+12000360 195210 Line 0000195210 xxxx
+12295652 200000</code></pre>
+<p>The default chunk size of 1,000,000 was used. Note that the final line always has the byte size and line count of the file.</p>
+<h1 id="author-copyright-license">Author, Copyright, License</h1>
+<p>Copyright 2015, 2025 by John K. Hinsdale <code>&lt;hin@alma.com&gt;</code> and freely distributed under the MIT License.</p>
